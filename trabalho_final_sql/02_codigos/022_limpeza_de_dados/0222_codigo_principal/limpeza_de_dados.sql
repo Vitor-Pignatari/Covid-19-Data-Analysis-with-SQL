@@ -1,4 +1,11 @@
-DROP VIEW IF EXISTS registro_ocupacao_final CASCADE;
+DROP MATERIALIZED VIEW IF EXISTS registro_ocupacao_final;
+DROP VIEW IF EXISTS registro_ocupacao_07_locf;
+DROP VIEW IF EXISTS registro_ocupacao_06_serie_temporal;
+DROP VIEW IF EXISTS registro_ocupacao_05_colunas_calculadas_filtradas;
+DROP VIEW IF EXISTS registro_ocupacao_04_sem_duplicatas;
+DROP VIEW IF EXISTS registro_ocupacao_03_dados_limpos;
+DROP VIEW IF EXISTS registro_ocupacao_02_sem_decimais;
+DROP VIEW IF EXISTS registro_ocupacao_01_nao_excluido;
 
 -- 01: Remove registros com status excluidos
 CREATE OR REPLACE VIEW registro_ocupacao_01_nao_excluido AS
@@ -164,6 +171,6 @@ CREATE OR REPLACE VIEW registro_ocupacao_07_LOCF AS
 	FROM registro_ocupacao_06_serie_temporal;
 
 -- 08: Cria tabela final com dados prontos para analise
-CREATE OR REPLACE VIEW registro_ocupacao_final AS
+CREATE MATERIALIZED VIEW registro_ocupacao_final AS
 	SELECT * FROM registro_ocupacao_07_LOCF
 	ORDER BY id_hospital, data_notificacao, id_local, id_status;
