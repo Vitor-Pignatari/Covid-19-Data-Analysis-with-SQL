@@ -1,0 +1,42 @@
+Status de envio com coluna excluído igual a True deve nos indicar para excluir registros de ocupação com esse id de status envio? CHECK
+
+
+
+Se ocupacao_hospitalar_cli igual a zero ou nulo, então necessariamente ocupacao_covid_cli deve também ser igual a zero ou nulo. LIMPEZA DE DADOS. CHECK
+
+Se ocupacao_covid_cli igual a zero ou nulo, então necessariamente ocupacao_suspeito_cli e ocupacao_confirmado_cli devem também serem iguais a zero ou nulos. TRATAMENTO DE DADOS. CHECK
+
+
+
+Se ocupacao_hospitalar_uti igual a zero ou nulo, então necessariamente ocupacao_covid_uti deve também ser igual a zero ou nulo. LIMPEZA DE DADOS. CHECK
+
+Se ocupacao_covid_uti igual a zero ou nulo, então necessariamente ocupacao_suspeito_uti e ocupacao_confirmado_uti devem também serem iguais a zero ou nulos. TRATAMENTO DE DADOS. CHECK
+
+
+
+Retirar linhas duplicadas (linhas com mesmo id_hospital e data_notificacao). TRATAMENTO DE DADOS. CHECK
+	. Manter apenas as linhas com a data mais recente de atualizaçao para o mesmo registro. CHECK
+
+
+
+Estimar a entrada de pacientes por COVID (tipos de caso suspeito ou confirmado). TRATAMENTO DE DADOS.
+
+
+
+Valores decimais
+
+
+CORRIGIR 02.SQL
+
+
+
+Levantamento de indicadores. ANALISE DE DADOS
+- Principais métricas:
+	. Quantidade acumulada de internacoes por COVID no(s) ultimo(s) (x) dia(s)
+	. quantidade total de leitos ocupados por COVID
+	. quantidade maxima de leitos ocupados por COVID no(s) ultimo(s) (x) dia(s) (O limite de cada hospital foi atingido?)
+	. Proporçao de leitos ocupados por COVID em relaçao a todos os leitos ocupados
+	. Razao entre a quantidade de altas e a quantiadade de obitos
+- Agrupamentos: data, localidade, tipo de caso (confirmado ou suspeito)
+- Filtros: hospital, data, localidade
+- Visualizaçoes: 
