@@ -13,6 +13,8 @@ execute:
 editor: visual
 ---
 
+
+
 ## Introdução
 
 Este relatório tem como objetivo realizar a análise de dados sobre a ocupação dos leitos hospitalares destinados ao tratamento de COVID-19 nos anos de 2020, 2021 e 2022, utilizando SQL como ferramenta principal. A análise foi realizada com base em um banco de dados com informações obtidas através de arquivos .csv e estão disponíveis em: <https://opendatasus.saude.gov.br/dataset/registro-de-ocupacao-hospitalar-covid-19>. Tais dizem respeito a ocupação dos leitos, registros de óbitos e outras métricas relevantes.
@@ -25,6 +27,8 @@ As principais analises realizadas foram:
 Para tanto foram utilizadas técnicas de **SQL** para manipulação e análise dos dados, com foco na extração de informações relevantes e na identificação de padrões e anomalias.
 
 ## Conexão com Banco de Dados
+
+
 
 ```{r}
 library(DBI)
@@ -39,6 +43,8 @@ con <- dbConnect(
   user = "postgres",
   password = "Lujopens10@#160403")
 ```
+
+
 
 ## Limpeza de Dados
 
@@ -59,6 +65,8 @@ Assim, para o tratamento de dados, foram realizadas algumas etapas. Para cada um
 ### 0 Criaçao de views
 
 Antes de executarmos o __script__ que cria a __materialized view__ final, garantimos que já não existe no banco de dados outros objetos com o mesmo nome. Para isso, executamos o comando **"DROP VIEW IF EXISTS nome_da_view";** para cada view que vamos criar.
+
+
 
 ```{sql, connection=con}
 DROP MATERIALIZED VIEW IF EXISTS registro_ocupacao_final;
@@ -93,9 +101,13 @@ DROP VIEW IF EXISTS registro_ocupacao_02_sem_decimais;
 ```{sql, connection=con}
 DROP VIEW IF EXISTS registro_ocupacao_01_nao_excluido;
 ```
+
+
 ### 1 Remoção de registros (notificações) com status excluídos
 
 Observamos que alguns registros continham status de exclusão com valores logicos __true__, o que não faz sentido para a análise. Assim, criamos uma view que filtra esses registros para manter apenas aqueles com status não excluídos.
+
+
 ```{sql, connection=con}
 -- 01: Remove registros com status excluidos
 CREATE OR REPLACE VIEW registro_ocupacao_01_nao_excluido AS
@@ -106,9 +118,13 @@ CREATE OR REPLACE VIEW registro_ocupacao_01_nao_excluido AS
 	WHERE excluido = false;
 ```
 
+
+
 ### 2 Remoção (filtro) de registros que continham valores decimais
 
 Alguns valores de ocupação e saída continham valores decimais (valores relativos pois nao passavam de 100), o que não faz sentido para a análise, pois esses valores deveriam ser inteiros. Assim, criamos uma view que filtra esses registros para manter apenas aqueles com valores inteiros.
+
+
 
 ```{sql, connection=con}
 -- 02: Remove valores decimais
@@ -131,11 +147,15 @@ CREATE OR REPLACE VIEW registro_ocupacao_02_sem_decimais AS
 ```
 
 
+
+
 ### 3 Validação de colunas de acordo com informações do dicionário de dados
 
 De acordo com o dicionário de dados, estabelecemos alguns critérios para validar os valores das colunas de ocupação e saídas:
 
 - Se *ocupacao_hospitalar_cli* for igual a zero ou nulo, então, necessariamente, *ocupacao_covid_cli* também deve ser igual a zero ou nulo.
+
+
 ```{sql, connection=con}
 SELECT 
 	COUNT(*)::DECIMAL AS sem_logica_count,
@@ -146,7 +166,11 @@ WHERE (ocupacao_hospitalar_cli = 0 AND ocupacao_covid_cli > 0)
 	OR (ocupacao_hospitalar_cli IS NULL AND ocupacao_covid_cli IS NOT NULL);
 ```
 
+
+
 - Se *ocupacao_hospitalar_uti* for igual a zero ou nulo, então, necessariamente, *ocupacao_covid_uti* também deve ser igual a zero ou nulo.
+
+
 ```{sql, connection=con}
 -- Validacao coluna ocupacao_covid_uti
 SELECT 
@@ -159,7 +183,11 @@ WHERE (ocupacao_hospitalar_uti = 0 AND ocupacao_covid_uti > 0)
 ```
 
 
+
+
 - - Se *ocupacao_covid_cli* for igual a zero ou nulo, então, necessariamente, *ocupacao_suspeito_cli* e *ocupacao_confirmado_cli* também devem ser iguais a zero ou nulos.
+
+
 
 ```{sql, connection=con}
 -- Validacao colunas ocupacao_suspeito_cli e ocupacao_confirmado_cli
@@ -172,7 +200,11 @@ WHERE (ocupacao_covid_cli = 0 AND (ocupacao_suspeito_cli > 0 OR ocupacao_confirm
 	OR (ocupacao_covid_cli IS NULL AND (ocupacao_suspeito_cli IS NOT NULL OR ocupacao_confirmado_cli IS NOT NULL));
 ```
 
+
+
 - - Se *ocupacao_covid_uti* for igual a zero ou nulo, então, necessariamente, *ocupacao_suspeito_uti* e *ocupacao_confirmado_uti* também devem ser iguais a zero ou nulos.
+
+
 
 ```{sql, connection=con}
 -- Validacao colunas ocupacao_suspeito_uti e ocupacao_confirmado_uti
@@ -186,9 +218,13 @@ WHERE (ocupacao_covid_uti = 0 AND (ocupacao_suspeito_uti > 0 OR ocupacao_confirm
 ```
 
 
+
+
 Com base nessas validações, percebemos que cerca de 62% dos registros das colunas *ocupacao_suspeito_uti*, *ocupacao_confirmado_uti*, *ocupacao_suspeito_cli* e *ocupacao_confirmado_cli* apresentam inconsistências e, por isso, decidimos não utilizá-las nas análises.
 
 Ademais, como menos de 1% dos registros das colunas *ocupacao_covid_cli* e *ocupacao_covid_uti* apresentam inconsistências, criaremos uma visualização que filtre os valores consistentes dessas colunas, conforme o __script abaixo__.
+
+
 
 
 ```{sql, connection=con}
@@ -218,9 +254,13 @@ CREATE OR REPLACE VIEW registro_ocupacao_03_dados_limpos AS
 ```
 
 
+
+
 ### 4 Remoção de notificações duplicadas
 
 Alguns registros continham notificações duplicadas, ou seja, com a mesma data de notificação e o mesmo hospital. Para resolver isso, criamos uma view que remove as duplicatas, mantendo apenas a notificação mais recente (com base na data de atualização e criação).
+
+
 
 ```{sql, connection=con}
 -- 04: Remove notificacoes duplicadas, trazendo aquelas com data de atualizacao mais recente
@@ -244,8 +284,12 @@ WHERE rn = 1;
 ```
 
 
+
+
 ### 5 Criação de colunas calculadas
 Para facilitar a análise, criamos colunas calculadas que agregam informações relevantes. As colunas criadas foram: *ocupacao_covid*, *ocupacao_hospitalar*, *saida_covid_obitos*, *saida_covid_altas*, *saida_covid*, *entrada_covid_calculada*.
+
+
 
 ```{sql, connection=con}
 -- 05: Cria colunas calculadas saida_obitos, saida_altas, saida_covid, saida_covid_calculada e entrada_covid_calculada
@@ -280,8 +324,12 @@ CREATE OR REPLACE VIEW registro_ocupacao_05_colunas_calculadas_filtradas AS
 ```
 
 
+
+
 ### 6 Criação de série temporal
 Para facilitar a análise temporal dos dados, criamos uma série temporal que combina todas as datas de notificação com os hospitais, locais e status. Isso nos permite analisar a evolução dos dados ao longo do tempo, mesmo quando alguns registros estão ausentes.
+
+
 
 ```{sql, connection=con}
 -- 06: Cria série temporal
@@ -326,8 +374,12 @@ CREATE OR REPLACE VIEW registro_ocupacao_06_serie_temporal AS
 	ORDER BY st.id_hospital, st.id_local, st.id_status, st.data_notificacao;
 ```
 
+
+
 ### 7 Execução de 'Last Observation Carried Forward (LOCF)' para tratamento de valores nulos em séries temporais.
 Para lidar com valores nulos na série temporal, aplicamos a técnica de "Last Observation Carried Forward (LOCF)", que preenche os valores nulos com o último valor observado (data imediatamente mais recente). Isso é especialmente útil em séries temporais, onde a continuidade dos dados é importante para a análise.
+
+
 ```{sql, connection=con}
 -- 07: Executa 'Last Observation Carried Forward (LOCF)' para tratamento de  valores nulos em séries temporais
 CREATE OR REPLACE VIEW registro_ocupacao_07_LOCF AS
@@ -354,14 +406,20 @@ CREATE OR REPLACE VIEW registro_ocupacao_07_LOCF AS
 ```
 
 
+
+
 ### 8 Criação de __materialized view__ como tabela final para facilitar uso durante consulta dos dados tratados.
 Criamos uma __materialized view__ final que contém todos os dados tratados e prontos para análise. Escolhemos esse objeto porque ele permite consultas mais rápidas e eficientes, especialmente em grandes volumes de dados. Essa tabela final é ordenada por hospital, data de notificação, local e status, facilitando a consulta e análise dos dados.
+
+
 ```{sql, connection=con}
 -- 08: Cria tabela final com dados prontos para analise
 CREATE MATERIALIZED VIEW registro_ocupacao_final AS
 	SELECT * FROM registro_ocupacao_07_LOCF
 	ORDER BY id_hospital, data_notificacao, id_local, id_status;
 ```
+
+
 
 
 ## Analise de Dados
@@ -375,6 +433,8 @@ Foram utilizadas __views__ e __CTEs__ para organizar as consultas SQL e facilita
 Foram utilizadas subconsultas para a limpeza dos dados.
 
 ### 3.1 Detecção de Anomalias: registros com picos isolados
+
+
 ```{sql, connection=con}
 -- 3.1 Detecção de Anomalias temporais
 
@@ -419,7 +479,11 @@ SELECT
   WHERE ocupacao_covid > 3*sd_c OR ocupacao_hospitalar > 3*sd_h;
 ```
 
+
+
 ### 3.2 Detecção de Anomalias: registros com picos isolados
+
+
 ```{sql, connection=con}
 -- 3.2 Detecção de Anomalias Temporais
 
@@ -489,7 +553,11 @@ FROM anomalias
 ORDER BY data_notificacao;
 ```
 
+
+
 ### 4 Análise de Texto: origem dos dados
+
+
 ```{sql, connection=con}
 WITH n_reg AS (
   SELECT 
@@ -519,7 +587,11 @@ agrupado AS (
 SELECT * FROM agrupado;
 ```
 
+
+
 ### 5 Evolução das altas e óbitos ao longo do tempo
+
+
 ```{sql, connection=con}
 -- 5 Evolucao das altas vs. obitos
 WITH truncado AS (
@@ -572,8 +644,12 @@ axo_ano AS (
 SELECT * FROM axo_trimestre;
 ```
 
+
+
 ### 6 Evolução da ocupados COVID vs ocupados hospitalar
 Com esta consulta, podemos verificar diariamente quanto a ocupação de leitos por Covid-19 representa do total de leitos ocupados.
+
+
 
 ```{sql, connection=con}
 -- 6 Evolução da razão entre leitos ocupados por pacientes com COVID e o total de leitos ocupados.
@@ -591,7 +667,11 @@ SELECT * FROM p_ocup
 ORDER BY id_hospital, data_notificacao;
 ```
 
+
+
 ### 7 Ocupação máxima de leitos por hospital
+
+
 ```{sql, connection=con}
 -- 7 Máximo de ocupações por hospital
 WITH ocup_max AS (
@@ -609,6 +689,8 @@ SELECT * FROM ocup_max
 WHERE ocup_c IS NOT NULL AND ocup_h IS NOT NULL
 ORDER BY ocup_h DESC, id_hospital;
 ```
+
+
 
 ## Observações Finais
 Dados são apenas dados até que se tenha um profissional por trás dos bastidores trabalhando:

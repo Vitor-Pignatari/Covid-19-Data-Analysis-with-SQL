@@ -19,15 +19,19 @@ Retirar linhas duplicadas (linhas com mesmo id_hospital e data_notificacao). TRA
 
 
 
-Estimar a entrada de pacientes por COVID (tipos de caso suspeito ou confirmado). TRATAMENTO DE DADOS.
+Valores decimais CHECK
 
 
 
-Valores decimais
+Estimar a entrada de pacientes por COVID (tipos de caso suspeito ou confirmado). TRATAMENTO DE DADOS. CHECK
 
 
-CORRIGIR 02.SQL
 
+Criar série temporal CHECK
+
+
+
+Last observation carried forward CHECK
 
 
 Levantamento de indicadores. ANALISE DE DADOS
@@ -35,7 +39,7 @@ Levantamento de indicadores. ANALISE DE DADOS
 	. Quantidade acumulada de internacoes por COVID no(s) ultimo(s) (x) dia(s)
 	. quantidade total de leitos ocupados por COVID
 	. quantidade maxima de leitos ocupados por COVID no(s) ultimo(s) (x) dia(s) (O limite de cada hospital foi atingido?)
-	. Proporçao de leitos ocupados por COVID em relaçao a todos os leitos ocupados
+	. Proporçao de leitos ocupados por COVID em relaçao a todos os leitos ocupados (hospitalares)
 	. Razao entre a quantidade de altas e a quantiadade de obitos
 - Agrupamentos: data, localidade, tipo de caso (confirmado ou suspeito)
 - Filtros: hospital, data, localidade

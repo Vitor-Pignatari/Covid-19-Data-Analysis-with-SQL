@@ -1,4 +1,4 @@
--- 05.1: Evolucao das altas vs. obitos
+-- 5 Evolucao das altas vs. obitos
 WITH truncado AS (
   SELECT 
     DATE(DATE_TRUNC('day', data_notificacao)) AS dia,
