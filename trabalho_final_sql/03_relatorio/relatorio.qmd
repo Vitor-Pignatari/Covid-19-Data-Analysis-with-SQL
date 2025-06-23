@@ -1,6 +1,6 @@
 ---
 title: "Trabalho Final de SQL para Ciência de Dados - CI245"
-subtitle: "Análise de Dados com SQL sobre Ocupações dos Leitos de COVID nos Anos de 2020, 2021 e 2022."
+subtitle: "Análise de Dados com SQL sobre Ocupações dos Leitos de COVID-19 nos Anos de 2020, 2021 e 2022."
 autor: "João Victor Pietchaki Gonçalves e Vitor Gabriel Pignatari"
 format: pdf
 toc: true
@@ -92,7 +92,7 @@ DROP VIEW IF EXISTS registro_ocupacao_01_nao_excluido;
 Observamos que alguns registros continham status de exclusão com valores logicos **true**, o que não faz sentido para a análise. Assim, criamos uma view que filtra esses registros para manter apenas aqueles com status não excluídos.
 
 ```{sql}
--- 01: Remove registros com status excluidos
+-- Remove registros com status excluidos
 CREATE OR REPLACE VIEW registro_ocupacao_01_nao_excluido AS
 	SELECT ro.*
 	FROM registro_ocupacao ro
@@ -106,7 +106,7 @@ CREATE OR REPLACE VIEW registro_ocupacao_01_nao_excluido AS
 Alguns valores de ocupação e saída continham valores decimais (valores relativos pois nao passavam de 100), o que não faz sentido para a análise, pois esses valores deveriam ser inteiros. Assim, criamos uma view que filtra esses registros para manter apenas aqueles com valores inteiros.
 
 ```{sql}
--- 02: Remove valores decimais
+-- Remove valores decimais
 CREATE OR REPLACE VIEW registro_ocupacao_02_sem_decimais AS
 	SELECT * FROM registro_ocupacao_01_nao_excluido
 	EXCEPT
@@ -213,7 +213,7 @@ Com base nessas validações, percebemos que cerca de 62% dos registros das colu
 Ademais, como menos de 1% dos registros das colunas *ocupacao_covid_cli* e *ocupacao_covid_uti* apresentam inconsistências, criaremos uma visualização que filtre os valores consistentes dessas colunas, conforme o **script abaixo**.
 
 ```{sql}
--- 03: valida regras de acordo com interpretacao do dicionario de dados
+-- valida regras de acordo com interpretacao do dicionario de dados
 CREATE OR REPLACE VIEW registro_ocupacao_03_dados_limpos AS
 	SELECT
 		_id, data_notificacao, criado_em, atualizado_em,
@@ -247,7 +247,7 @@ CREATE OR REPLACE VIEW registro_ocupacao_03_dados_limpos AS
 Alguns registros continham notificações duplicadas, ou seja, com a mesma data de notificação e o mesmo hospital. Para resolver isso, criamos uma view que remove as duplicatas, mantendo apenas a notificação mais recente (com base na data de atualização e criação).
 
 ```{sql}
--- 04: Remove notificacoes duplicadas, trazendo aquelas com data de atualizacao mais recente
+-- Remove notificacoes duplicadas, trazendo aquelas com data de atualizacao mais recente
 CREATE OR REPLACE VIEW registro_ocupacao_04_sem_duplicatas AS
 WITH ranked AS (
 	SELECT *,
@@ -272,7 +272,7 @@ WHERE rn = 1;
 Para facilitar a análise, criamos colunas calculadas que agregam informações relevantes. As colunas criadas foram: *ocupacao_covid*, *ocupacao_hospitalar*, *saida_covid_obitos*, *saida_covid_altas*, *saida_covid*, *entrada_covid_calculada*.
 
 ```{sql}
--- 05: Cria colunas calculadas saida_obitos, saida_altas, saida_covid, saida_covid_calculada e entrada_covid_calculada
+-- Cria colunas calculadas saida_obitos, saida_altas, saida_covid, saida_covid_calculada e entrada_covid_calculada
 CREATE OR REPLACE VIEW registro_ocupacao_05_colunas_calculadas_filtradas AS
 	WITH com_colunas_calculdas AS(
 		SELECT
@@ -327,7 +327,7 @@ CREATE OR REPLACE VIEW registro_ocupacao_05_colunas_calculadas_filtradas AS
 Para facilitar a análise temporal dos dados, criamos uma série temporal que combina todas as datas de notificação com os hospitais, locais e status. Isso nos permite analisar a evolução dos dados ao longo do tempo, mesmo quando alguns registros estão ausentes.
 
 ```{sql}
--- 06: Cria série temporal
+-- Cria série temporal
 CREATE OR REPLACE VIEW registro_ocupacao_06_serie_temporal AS
 	WITH calendario AS(
 	
@@ -379,7 +379,7 @@ CREATE OR REPLACE VIEW registro_ocupacao_06_serie_temporal AS
 Para lidar com valores nulos na série temporal, aplicamos a técnica de "Last Observation Carried Forward (LOCF)", que preenche os valores nulos com o último valor observado (data imediatamente mais recente). Isso é especialmente útil em séries temporais, onde a continuidade dos dados é importante para a análise.
 
 ```{sql}
--- 07: Executa 'Last Observation Carried Forward (LOCF)' para tratamento de  valores nulos em séries temporais
+-- Executa 'Last Observation Carried Forward (LOCF)' para tratamento de  valores nulos em séries temporais
 CREATE OR REPLACE VIEW registro_ocupacao_07_LOCF AS
 	SELECT
 		data_notificacao,
@@ -414,7 +414,7 @@ CREATE OR REPLACE VIEW registro_ocupacao_07_LOCF AS
 Criamos uma **materialized view** final que contém todos os dados tratados e prontos para análise. Escolhemos esse objeto porque ele permite consultas mais rápidas e eficientes, especialmente em grandes volumes de dados. Essa tabela final é ordenada por hospital, data de notificação, local e status, facilitando a consulta e análise dos dados.
 
 ```{sql}
--- 08: Cria tabela final com dados prontos para analise
+-- Cria tabela final com dados prontos para analise
 CREATE MATERIALIZED VIEW registro_ocupacao_final AS
 	SELECT * FROM registro_ocupacao_07_LOCF
 	ORDER BY id_hospital, data_notificacao, id_local, id_status;
@@ -435,7 +435,7 @@ Foram utilizadas subconsultas para a limpeza dos dados.
 ### Detecção de Anomalias: registros com picos isolados
 
 ```{sql}
--- 3.1 Detecção de Anomalias temporais
+-- Detecção de Anomalias temporais
 CREATE OR MATERIALIZED VIEW anomalias_temporais_1 AS
   WITH estat AS (
     SELECT
@@ -483,8 +483,27 @@ CREATE OR MATERIALIZED VIEW anomalias_temporais_2 AS
 
 ### Detecção de Anomalias: registros com picos isolados
 
+# Identificação de Dias Atípicos na Quantidade de Óbitos por Covid-19
+
+A consulta abaixo busca identificar quais foram os dias mais atípicos em relação à quantidade de óbitos por Covid-19 durante o período da pandemia. Para isso, utilizamos uma técnica estatística que compara o número de óbitos de cada dia com a **média móvel dos últimos *n* dias**, tendo como parâmetro o **z-score**.
+
+Para concretizar essa classificação dos dias como anômalos ou não, desenvolvemos um script com os seguintes passos:
+
+1.  **Agregação dos óbitos por data**, por meio da CTE `obitos_por_data`.
+
+2.  **Cálculo da média móvel e do desvio padrão móvel** dos últimos 30 dias, utilizando a CTE `base`.
+
+3.  **Determinação dos limites inferior e superior** que definem se um dia é considerado anômalo, com base no seguinte critério:\
+    Se a quantidade de óbitos em um determinado dia estiver **acima ou abaixo de três vezes o desvio padrão móvel em relação à média móvel**, então esse dia é classificado como anômalo, sendo:
+
+    -   `1` para uma anomalia positiva (valores muito acima da média)\
+    -   `-1` para uma anomalia negativa (valores muito abaixo da média)\
+    -   `0` para um dia não anômalo (dentro dos limites)
+
+4.  Por fim, a consulta retorna todos os dias, juntamente com as métricas calculadas e a indicação de anomalia, permitindo uma análise clara dos períodos mais atípicos no número de óbitos.
+
 ```{sql}
--- 3.2 Detecção de Anomalias Temporais
+-- Detecção de Anomalias Temporais
 
 CREATE OR MATERIALIZED VIEW anomalias_temporais_3 AS
   WITH obitos_por_data AS(
@@ -555,6 +574,8 @@ CREATE OR MATERIALIZED VIEW anomalias_temporais_3 AS
 
 ### Análise de Texto: origem dos dados
 
+Neste trecho de código, para sabermos quantas observações são provenientes de cada origem dos dados, selecionamos a coluna do id da origem e contamos quantas vezes ele aparece, para então agregar esta informação a outra tabela que contém a coluna de origem dos dados, e por fim, agrupamos todos os valores pela origem dos dados, verificando o volume de informação proveniente de cada origem.
+
 ```{sql}
 CREATE OR MATERIALIZED VIEW analise_textual_origem_dos_dados AS
   WITH n_reg AS (
@@ -587,8 +608,22 @@ CREATE OR MATERIALIZED VIEW analise_textual_origem_dos_dados AS
 
 ### Evolução das altas e óbitos ao longo do tempo
 
+\# Análise da Evolução Temporal das Altas e Óbitos por Covid-19
+
+Para analisar a evolução temporal das altas e compará-las com a quantidade de óbitos, elaboramos a consulta que segue abaixo.
+
+Ela é composta basicamente por três partes:
+
+1\. \*\*CTE \`truncado\`\*\*, onde criamos quatro novas colunas (\`dia\`, \`mes\`, \`trimestre\` e \`ano\`) a partir do truncamento da data;
+
+2\. \*\*CTEs \`axo_dia\`, \`axo_mes\`, \`axo_trimestre\` e \`axo_ano\`\*\*, que executam a mesma função: agregam os valores de altas e óbitos conforme o tipo de data truncada correspondente;
+
+3\. \*\*Consulta final\*\*, que seleciona todas as colunas, permitindo ao usuário escolher qual CTE deseja visualizar, de acordo com a granularidade temporal desejada.
+
+Dessa forma, conseguimos observar a evolução temporal, em diferentes granularidades, da quantidade total de óbitos versus altas durante o período da pandemia de Covid-19.
+
 ```{sql}
--- 5 Evolucao das altas vs. obitos
+-- Evolucao das altas vs. obitos
 CREATE OR MATERIALIZED VIEW evolucao_obitos_altas AS
   WITH truncado AS (
     SELECT 
@@ -642,10 +677,12 @@ CREATE OR MATERIALIZED VIEW evolucao_obitos_altas AS
 
 ### Evolução da ocupados COVID vs ocupados hospitalar
 
-Com esta consulta, podemos verificar diariamente quanto a ocupação de leitos por Covid-19 representa do total de leitos ocupados.
+Nesta consulta, calculamos o percentual de leitos ocupados por casos de Covid-19 em realação ao total de leitos ocupados no hospital.
+
+É selecionada a coluna da data de notificação, id do hospital e então o cálculo do percentual, realizando o cálculo "leitos covid" / "leitos ocupados" caso, o valor de "leitos ocupados" seja maior do que 0 e então, é realizada a ordenação por id do hospital e então a data da notificação.
 
 ```{sql}
--- 6 Evolução da razão entre leitos ocupados por pacientes com COVID e o total de leitos ocupados.
+-- Evolução da razão entre leitos ocupados por pacientes com COVID e o total de leitos ocupados.
 CREATE OR MATERIALIZED VIEW evolucao_ocupacao_covid_vs_hospitalar AS
   WITH p_ocup AS (
     SELECT 
@@ -662,6 +699,8 @@ CREATE OR MATERIALIZED VIEW evolucao_ocupacao_covid_vs_hospitalar AS
 ```
 
 ### Ocupação máxima de leitos por hospital
+
+Para verificar a não somente a ocupação máxima de leitos atingida, mas também a ocupação máxima por casos de covid e as maiores quantidades de desocupação por obito e por altas, são selecionadas os valores máximos de cada coluna referenciada acima e o id dos hospitais. Para que não tenhamos duas observações com a mesma informação, agrupamos os valores pela id do hospital. Além disto, são selecionadas as observações que não tem os valores de ocupação nulos, ou seja, as ocupações precisam ter valores numéricos para aparecer na análise. Esta visualização oferece uma análise mais objetiva e de fácil entendimento da capacidade de ocupação de cada hospital, e uma possível verificação de sobrecarga do sistema de saúde.
 
 ```{sql}
 -- 7 Máximo de ocupações por hospital
